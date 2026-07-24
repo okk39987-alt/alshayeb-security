@@ -81,17 +81,25 @@ client.on('messageCreate', async message => {
     if (violationReason) {
         try {
             // حذف الرسالة
-            await message.delete();
+            await message.delete().catch(() => {});
 
-            // مدة أسبوع بالمللي ثانية
-            const oneWeek = 7 * 24 * 60 * 60 * 1000;
-            
-            // إعطاء العضو تيموت أسبوع
-            await message.member.timeout(oneWeek, violationReason);
+            // جلب العضو للتأكد من تحميله في الذاكرة
+            let member = message.member;
+            if (!member) {
+                member = await message.guild.members.fetch(message.author.id).catch(() => null);
+            }
 
-            // إرسال تحذير مؤقت يحذف بعد 4 ثواني
-            let warning = await message.channel.send(`⚠️ ${message.author}, ممنوع ${violationReason} في السيرفر وتم إعطاؤك تيموت لمدة أسبوع!`);
-            setTimeout(() => warning.delete().catch(() => {}), 4000);
+            if (member) {
+                // مدة أسبوع بالمللي ثانية
+                const oneWeek = 7 * 24 * 60 * 60 * 1000;
+                
+                // إعطاء العضو تيموت أسبوع
+                await member.timeout(oneWeek, violationReason);
+
+                // إرسال تحذير مؤقت يحذف بعد 4 ثواني
+                let warning = await message.channel.send(`⚠️ ${message.author}, ممنوع ${violationReason} في السيرفر وتم إعطاؤك تيموت لمدة أسبوع!`);
+                setTimeout(() => warning.delete().catch(() => {}), 4000);
+            }
         } catch (err) {
             console.log('خطأ في حذف الرسالة أو إعطاء التيموت (تأكد من صلاحيات البوت):', err);
         }
