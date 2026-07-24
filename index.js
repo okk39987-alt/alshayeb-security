@@ -13,7 +13,10 @@ const client = new Client({
     ]
 });
 
-// قائمة السب الثقيل والكلمات الممنوعة فقط (بدون شتايم عادية)
+// متغير لحالة الحماية (مفعلة افتراضياً)
+let isSecurityActive = true;
+
+// قائمة السب الثقيل والكلمات الممنوعة فقط
 const badWords = [
     'كلب', 'حمار', 'ابن الهرمه', 'قحبة', 'منيوك', 'كل زق', 'يعرص', 'شرموط', 'خنيث',
     'منيوكة', 'شرموطة', 'عرص', 'ديوث', 'ديوثة', 'ابن الكلب', 'ابن الحمار', 'ابن الـ', 
@@ -23,11 +26,32 @@ const badWords = [
 ];
 
 client.on('ready', () => {
-    console.log(`✅ بوت الحماية (فلتر السب الثقيل) شغال باسم: ${client.user.tag}`);
+    console.log(`✅ بوت الحماية شغال باسم: ${client.user.tag}`);
 });
 
 client.on('messageCreate', async message => {
-    if (message.author.bot) return;
+    if (message.author.bot || !message.guild) return;
+
+    // أمر تشغيل وإيقاف الحماية (للمشرفين فقط)
+    if (message.content.startsWith('!security')) {
+        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply('❌ ما عندك صلاحية للتحكم بأمر الحماية!');
+        }
+
+        const args = message.content.split(' ')[1];
+        if (args === 'on') {
+            isSecurityActive = true;
+            return message.reply('🟢 **تم تفعيل نظام الحماية والفلتر بنجاح!**');
+        } else if (args === 'off') {
+            isSecurityActive = false;
+            return message.reply('🔴 **تم إيقاف نظام الحماية والفلتر مؤقتاً!**');
+        } else {
+            return message.reply('⚠️ الاستخدام الصحيح:\n`!security on` لتفعيل الحماية\n`!security off` لإيقاف الحماية');
+        }
+    }
+
+    // إذا كانت الحماية مطفية، لا يسوي شي
+    if (!isSecurityActive) return;
 
     // استثناء للإدارة
     if (message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) return;
