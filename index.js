@@ -59,21 +59,41 @@ client.on('messageCreate', async message => {
     // استثناء للإدارة
     if (message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) return;
 
-    // إزالة المسافات والرموز لمنع التلاعب
-    let content = message.content.toLowerCase().replace(/[\s\-_.#+]+/g, '');
+    let violationReason = null;
 
-    // فحص الكلمات الممنوعة
-    for (let word of badwords) {
-        let cleanWord = word.toLowerCase().replace(/[\s\-_.#+]+/g, '');
-        if (content.includes(cleanWord)) {
-            try {
-                await message.delete();
-                let warning = await message.channel.send(`⚠️ ${message.author}, ممنوع استخدام هذا اللفظ في السيرفر!`);
-                setTimeout(() => warning.delete().catch(() => {}), 4000);
-            } catch (err) {
-                console.log('خطأ في حذف رسالة السب:', err);
+    // 1. فحص الروابط
+    const linkRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)/gi;
+    if (linkRegex.test(message.content)) {
+        violationReason = 'إرسال روابط ممنوعة';
+    } else {
+        // 2. فحص الكلمات الممنوعة (إزالة المسافات والرموز لمنع التلاعب)
+        let content = message.content.toLowerCase().replace(/[\s\-_.#+]+/g, '');
+        for (let word of badwords) {
+            let cleanWord = word.toLowerCase().replace(/[\s\-_.#+]+/g, '');
+            if (content.includes(cleanWord)) {
+                violationReason = 'استخدام ألفاظ سيئة';
+                break;
             }
-            break;
+        }
+    }
+
+    // إذا تم رصد مخالفة (رابط أو لفظ سيء)
+    if (violationReason) {
+        try {
+            // حذف الرسالة
+            await message.delete();
+
+            // مدة أسبوع بالمللي ثانية
+            const oneWeek = 7 * 24 * 60 * 60 * 1000;
+            
+            // إعطاء العضو تيموت أسبوع
+            await message.member.timeout(oneWeek, violationReason);
+
+            // إرسال تحذير مؤقت يحذف بعد 4 ثواني
+            let warning = await message.channel.send(`⚠️ ${message.author}, ممنوع ${violationReason} في السيرفر وتم إعطاؤك تيموت لمدة أسبوع!`);
+            setTimeout(() => warning.delete().catch(() => {}), 4000);
+        } catch (err) {
+            console.log('خطأ في حذف الرسالة أو إعطاء التيموت (تأكد من صلاحيات البوت):', err);
         }
     }
 });
