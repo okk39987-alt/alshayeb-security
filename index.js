@@ -16,13 +16,12 @@ const client = new Client({
 // متغير لحالة الحماية (مفعلة افتراضياً)
 let isSecurityActive = true;
 
-// قائمة السب الثقيل والكلمات الممنوعة فقط
+// قائمة السب الثقيل والكلمات الممنوعة
 const badWords = [
     'كلب', 'حمار', 'ابن الهرمه', 'قحبة', 'منيوك', 'كل زق', 'يعرص', 'شرموط', 'خنيث',
-    'منيوكة', 'شرموطة', 'عرص', 'ديوث', 'ديوثة', 'ابن الكلب', 'ابن الحمار', 'ابن الـ', 
-    'خول', 'ياديوث', 'ياعرص', 'ياشرموط', 'قواحيب', 'خرا', 'طيز', 'كس', 'طيزك',
-    'كسك', 'أير', 'زبر', 'قضيب', 'منيوك ابن قحبة', 'ابن الشرموطة', 'شرااميط', 'قحااب', 
-    'منياك', 'خوال', 'ديوثين', 'عراص', 'ابن الوسخة', 'عرص ابن عرص'
+    'منيوكة', 'شرموطة', 'عرص', 'ديوث', 'ديوثة', 'ابن الكلب', 'ابن الحمار', 'خول', 
+    'ياديوث', 'ياعرص', 'ياشرموط', 'قواحيب', 'خرا', 'طيز', 'كس', 'طيزك',
+    'كسك', 'أير', 'زبر', 'قضيب', 'منياك', 'خوال', 'ديوثين', 'عراص', 'ابن الوسخة'
 ];
 
 client.on('ready', () => {
@@ -53,34 +52,36 @@ client.on('messageCreate', async message => {
     // إذا كانت الحماية مطفية، لا يسوي شي
     if (!isSecurityActive) return;
 
-    // استثناء للإدارة
-    if (message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) return;
-
-    // إزالة المسافات والرموز لمنع التلاعب
-    let content = message.content.toLowerCase().replace(/[\s\-_~.]+/g, '');
-
-    // 1. نظام منع الروابط
-    if (message.content.includes('http://') || message.content.includes('https://') || message.content.includes('www.')) {
+    // 1. نظام منع الروابط مع "الباند التلقائي" (يطبق على الجميع بدون استثناء)
+    if (message.content.includes('http://') || message.content.includes('https://') || message.content.includes('www.') || message.content.includes('discord.gg/')) {
         try {
             await message.delete();
-            message.channel.send(`⚠️ ${message.author}, ممنوع نشر الروابط هنا!`).then(msg => {
-                setTimeout(() => msg.delete(), 5000);
-            });
+            await message.member.ban({ reason: 'نشر روابط ممنوعة في السيرفر' });
+
+            const warning = await message.channel.send(`🚨 ${message.author.tag} تم تبنيده تلقائياً بسبب نشر الروابط!`);
+            setTimeout(() => warning.delete().catch(() => {}), 5000);
         } catch (err) {
-            console.log('ما قدرت أحذف الرابط');
+            console.log('ما قدرت أعطي باند للعضو (تأكد أن رتبة البوت أعلى من رتبة المستهدف وأن لديه صلاحية Ban Members)');
         }
         return;
     }
 
-    // 2. نظام منع السب الثقيل
+    // 2. نظام منع السب الثقيل (يحذف الرسالة فقط للجميع)
+    let contentWords = message.content.toLowerCase().split(/\s+/);
+    
     for (let word of badWords) {
         let cleanWord = word.toLowerCase().replace(/[\s\-_~.]+/g, '');
-        if (content.includes(cleanWord)) {
+        
+        let isBad = contentWords.some(w => {
+            let cleanW = w.replace(/[\s\-_~.,?!@#$%^&*()+=]+/g, '');
+            return cleanW === cleanWord;
+        });
+
+        if (isBad) {
             try {
                 await message.delete();
-                message.channel.send(`⚠️ ${message.author}, ممنوع استخدام هذه الكلمات في السيرفر!`).then(msg => {
-                    setTimeout(() => msg.delete(), 5000);
-                });
+                const warning = await message.channel.send(`⚠️ ${message.author}, ممنوع استخدام هذه الكلمات في السيرفر!`);
+                setTimeout(() => warning.delete().catch(() => {}), 5000);
             } catch (err) {
                 console.log('ما قدرت أحذف رسالة السب');
             }
